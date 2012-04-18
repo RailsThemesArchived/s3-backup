@@ -1,0 +1,25 @@
+#!/usr/bin/env ruby
+
+# see http://www.austinriba.com/2011/02/copy-contents-of-one-s3-bucket-to-another/
+
+require 'right_aws'
+
+config_hash = {}
+config_lines = `heroku config --app railsthemes`
+config_lines.split("\n").map{|line| a = line.split(/\s+=>\s+/); config_hash[a[0]] = a[1]}
+
+S3ID = config_hash['AWS_ACCESS_KEY_ID']
+S3KEY = config_hash['AWS_SECRET_ACCESS_KEY']
+SRCBUCKET = "railsthemes-production"
+DESTBUCKET = "railsthemes-prod-backup-#{DateTime.now.strftime("%Y%m%d-%H%M%S")}"
+
+s3 = RightAws::S3Interface.new(S3ID, S3KEY)
+s3.create_bucket DESTBUCKET
+s3.incrementally_list_bucket(SRCBUCKET) do |h|
+  h[:contents].each do |o|
+    puts("Copying " + o[:key])
+    s3.copy(SRCBUCKET, o[:key], DESTBUCKET, o[:key])
+  end
+end
+
+puts("Done.")
